@@ -1,0 +1,21 @@
+﻿# Segredos / ambiente
+.env
+.env.*.local
+*.env
+
+# Banco / artefatos locais
+presence_data.db
+*.db
+*.csv
+*.pdf
+*.log
+
+# Python / IDE / SO
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+.venv/
+venv/
+.DS_Store
+Thumbs.db
