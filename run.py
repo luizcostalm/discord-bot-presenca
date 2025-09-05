@@ -35,6 +35,7 @@ def build_bot(config: Config) -> commands.Bot:
         chunk_guilds_at_startup=True,
     )
 
+
     @bot.event
     async def on_ready():
         print(f"✅ Logado como {bot.user} (id: {bot.user.id})")

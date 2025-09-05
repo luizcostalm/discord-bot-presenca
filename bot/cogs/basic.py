@@ -18,6 +18,56 @@ def _about_color() -> int:
 
 
 class Basic(commands.Cog):
+    @commands.command(name="relatorio_ponto")
+    @commands.has_permissions(administrator=True)
+    async def relatorio_ponto(self, ctx):
+        """
+        Gera um relatório privado mostrando quem ficou online no Discord nos horários de entrada/retorno definidos pelos cargos.
+        """
+        import pytz
+        from datetime import datetime, timedelta
+        tz_br = pytz.timezone('America/Sao_Paulo')
+        agora_br = datetime.now(tz_br)
+        horarios_cargos = {
+            'Entrada-07:30': '07:30',
+            'Entrada-08:00': '08:00',
+            'Entrada-08:30': '08:30',
+            'Retorno-13:30': '13:30',
+            'Retorno-14:00': '14:00',
+        }
+        relatorio = []
+        for cargo_nome, hora_str in horarios_cargos.items():
+            cargo = discord.utils.get(ctx.guild.roles, name=cargo_nome)
+            if not cargo:
+                relatorio.append(f"Cargo `{cargo_nome}` não encontrado.")
+                continue
+            membros = [m for m in ctx.guild.members if cargo in m.roles and not m.bot]
+            if not membros:
+                relatorio.append(f"Nenhum membro com o cargo `{cargo_nome}`.")
+                continue
+            hora_br = agora_br.replace(hour=int(hora_str.split(":")[0]), minute=int(hora_str.split(":")[1]), second=0, microsecond=0)
+            janela_ini = hora_br
+            janela_fim = hora_br  # sem tolerância: só conta se ficou online exatamente no horário
+            from bot import db
+            presentes = []
+            ausentes = []
+            for membro in membros:
+                row = db.fetch_one(
+                    "SELECT status, timestamp FROM presence_log WHERE user_id=? AND status='online' AND timestamp = ? ORDER BY timestamp LIMIT 1",
+                    (membro.id, janela_ini.astimezone(pytz.UTC).strftime("%Y-%m-%d %H:%M:%S"),)
+                )
+                if row:
+                    presentes.append(membro.display_name)
+                else:
+                    ausentes.append(membro.display_name)
+            relatorio.append(f"\n**{cargo_nome} ({hora_str})**")
+            relatorio.append(f"Presentes: {', '.join(presentes) if presentes else 'Nenhum'}")
+            relatorio.append(f"Ausentes: {', '.join(ausentes) if ausentes else 'Nenhum'}")
+        try:
+            await ctx.author.send("\n".join(relatorio))
+            await ctx.reply("Relatório enviado por DM!")
+        except Exception:
+            await ctx.reply("Não consegui enviar o relatório por DM. Verifique suas configurações de privacidade.")
     """
     Comandos básicos / utilitários:
       - !ping

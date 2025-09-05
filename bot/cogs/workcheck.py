@@ -207,8 +207,11 @@ class WorkCheck(commands.Cog):
                 f"(ONLINE {_fmt_hms(durs['online'])}, AUSENTE {_fmt_hms(durs['idle'])}, DND {_fmt_hms(durs['dnd'])})"
             )
 
+        janela_str = f"{inicio or DEFAULT_START}-{fim or DEFAULT_END}"
+        if inicio and fim:
+            janela_str = f"{inicio}-{fim}"
         cab = (f"**Trabalhou — {membro.display_name}**\n"
-               f"Janela: {inicio or DEFAULT_START}-{fim or DEFAULT_END} | "
+               f"Janela: {janela_str} | "
                f"Dias úteis: {','.join(map(str,sorted(dias_validos)))} | "
                f"Modo: {modo.upper()} | Mín: {min_minutos}min | TZ: {_tz_label(tz)}")
         linhas.insert(0, cab)
@@ -259,6 +262,7 @@ class WorkCheck(commands.Cog):
         total_idle = 0.0
         linhas = []
 
+
         for a_utc, b_utc in janelas:
             data_local = a_utc.astimezone(tz).date()
             if data_local.weekday() not in dias_validos:
@@ -268,9 +272,20 @@ class WorkCheck(commands.Cog):
             durs = _durations_in_window(ctx.guild.id, membro.id, a_utc, b_utc)
             idle = durs["idle"]
             total_idle += idle
-            linhas.append(f"- {data_local} {ini}-{fim}: AUSENTE {_fmt_hms(idle)}")
 
-        head = f"**Ausência — {membro.display_name}** (TZ {_tz_label(tz)})"
+            # Buscar status personalizado do usuário (se houver)
+            custom_status = None
+            if hasattr(membro, "activities"):
+                for act in membro.activities:
+                    if isinstance(act, discord.CustomActivity) and act.name:
+                        custom_status = act.name
+                        break
+            status_msg = f"- {data_local} {ini}-{fim}: AUSENTE {_fmt_hms(idle)}"
+            if custom_status:
+                status_msg += f" | Status personalizado: '{custom_status}'"
+            linhas.append(status_msg)
+
+        head = f"**Ausência — {membro.display_name} {ini}-{fim}** (TZ {_tz_label(tz)})"
         if len(janelas) > 1:
             linhas.append(f"\n**Total no período:** {_fmt_hms(total_idle)}")
 
@@ -346,7 +361,7 @@ class WorkCheck(commands.Cog):
 
         linhas = [
             f"**Janela de Tempo — {membro.display_name}**",
-            f"{a_local} → {b_local} (TZ {_tz_label(tz)}) | modo {modo.upper()}",
+            f"{a_local.strftime('%Y-%m-%d %H:%M')} → {b_local.strftime('%Y-%m-%d %H:%M')} (TZ {_tz_label(tz)}) | modo {modo.upper()}",
             f"- ONLINE: {_fmt_hms(durs['online'])}",
             f"- AUSENTE: {_fmt_hms(durs['idle'])}",
             f"- NÃO PERTURBE: {_fmt_hms(durs['dnd'])}",
